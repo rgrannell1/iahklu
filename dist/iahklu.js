@@ -71,15 +71,26 @@ var C;
     }
     C.compileNode = compileNode;
     function compileRel(ast) {
-        return '--';
+        let message = '-[';
+        const { ref, type, props } = ast.data;
+        if (ref) {
+            message += ref;
+        }
+        if (type) {
+            message += `: ${type}`;
+        }
+        if (props) {
+            message += ' ' + compile(props);
+        }
+        return `${message}]-`;
     }
     C.compileRel = compileRel;
     function compileLeftRel(ast) {
-        return '<--';
+        return `<${compileRel(ast)}`;
     }
     C.compileLeftRel = compileLeftRel;
     function compileRightRel(ast) {
-        return '-->';
+        return `${compileRel(ast)}>`;
     }
     C.compileRightRel = compileRightRel;
     function compilePath(ast) {
@@ -88,13 +99,36 @@ var C;
     C.compilePath = compilePath;
     function compileNodeProps(ast) {
         let message = '{';
+        let ran = false;
         for (const [key, val] of Object.entries(ast.data)) {
+            ran = true;
             message += ` ${key}: ${val},`;
         }
-        message = message.slice(0, -1) + ' }';
+        if (ran) {
+            message = message.slice(0, -1);
+        }
+        message += ' }';
         return message;
     }
     C.compileNodeProps = compileNodeProps;
+    function compileTuple(ast) {
+        return '(' + ast.data.map(compile).join(', ') + ')';
+    }
+    C.compileTuple = compileTuple;
+    function compileRelProps(ast) {
+        let message = '{';
+        let ran = false;
+        for (const [key, val] of Object.entries(ast.data)) {
+            ran = true;
+            message += ` ${key}: ${val},`;
+        }
+        if (ran) {
+            message = message.slice(0, -1);
+        }
+        message += ' }';
+        return message;
+    }
+    C.compileRelProps = compileRelProps;
     function compile(ast) {
         if (Array.isArray(ast)) {
             return ast.map(compile).join('\n');
@@ -117,6 +151,12 @@ var C;
         else if (ast.type === 'NodeProps') {
             return compileNodeProps(ast);
         }
+        else if (ast.type === 'Tuple') {
+            return compileTuple(ast);
+        }
+        else if (ast.type === 'RelProps') {
+            return compileRelProps(ast);
+        }
         else {
             throw new Error('TODO' + JSON.stringify(ast, null, 2));
         }
@@ -126,8 +166,8 @@ var C;
 const query = C.compile([
     C.Path([
         C.Node('xx', 'DRIVE_TO', { a: 0, b: 1 }),
-        C.LeftRel(),
-        C.Node()
+        C.LeftRel('rel', 'DRIVES_TO', { c: 2 }),
+        C.Node('zz', 'DRIVE_TO', {}),
     ])
 ]);
 console.log(query);

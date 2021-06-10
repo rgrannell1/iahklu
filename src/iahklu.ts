@@ -15,7 +15,8 @@ namespace C {
       'NodeProps' |
       'RelProps' |
       'Path' |
-      'NodePropsAST'
+      'NodeProps' |
+      'Tuple'
   }
 
   export interface NodeAST extends AST {
@@ -69,7 +70,10 @@ namespace C {
     data: RelProps
   }
 
-
+  export interface TupleAST extends AST {
+    type: 'Tuple'
+    data: AST[]
+  }
 
 
 
@@ -151,16 +155,32 @@ namespace C {
     return message
   }
 
-  export function compileRel (ast: RelAST): string {
-    return '--'
+  export function compileRel (ast: RelAST | LeftRelAST | RightRelAST): string {
+    let message = '-['
+
+    const { ref, type, props } = ast.data
+
+    if (ref) {
+      message += ref
+    }
+
+    if (type) {
+      message += `: ${type}`
+    }
+
+    if (props) {
+      message += ' ' + compile(props)
+    }
+
+    return `${message}]-`
   }
 
   export function compileLeftRel (ast: LeftRelAST): string {
-    return '<--'
+    return `<${compileRel(ast)}`
   }
 
   export function compileRightRel (ast: RightRelAST): string {
-    return '-->'
+    return `${compileRel(ast)}>`
   }
 
   export function compilePath (ast: PathAST): string {
@@ -169,12 +189,40 @@ namespace C {
 
   export function compileNodeProps (ast: NodePropsAST): string {
     let message = '{'
+    let ran = false
 
     for (const [key, val] of Object.entries(ast.data)) {
+      ran = true
       message += ` ${key}: ${val},`
     }
 
-    message = message.slice(0, -1) + ' }'
+    if (ran) {
+      message = message.slice(0, -1)
+    }
+
+    message += ' }'
+
+    return message
+  }
+
+  export function compileTuple (ast: TupleAST): string {
+    return '(' + ast.data.map(compile).join(', ') + ')'
+  }
+
+  export function compileRelProps (ast: RelPropsAST): string {
+    let message = '{'
+    let ran = false
+
+    for (const [key, val] of Object.entries(ast.data)) {
+      ran = true
+      message += ` ${key}: ${val},`
+    }
+
+    if (ran) {
+      message = message.slice(0, -1)
+    }
+
+    message += ' }'
 
     return message
   }
@@ -194,6 +242,10 @@ namespace C {
       return compilePath(ast as PathAST)
     } else if (ast.type === 'NodeProps') {
       return compileNodeProps(ast as NodePropsAST)
+    } else if (ast.type === 'Tuple') {
+      return compileTuple(ast as TupleAST)
+    } else if (ast.type === 'RelProps') {
+      return compileRelProps(ast as RelPropsAST)
     } else {
       throw new Error('TODO' + JSON.stringify(ast, null, 2))
     }
@@ -203,8 +255,8 @@ namespace C {
 const query = C.compile([
   C.Path([
     C.Node('xx', 'DRIVE_TO', { a: 0, b: 1 }),
-    C.LeftRel(),
-    C.Node()
+    C.LeftRel('rel', 'DRIVES_TO', { c: 2 }),
+    C.Node('zz', 'DRIVE_TO', {  }),
   ])
 ])
 
