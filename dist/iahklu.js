@@ -54,6 +54,25 @@ var C;
         };
     }
     C.Path = Path;
+    function Tuple(parts) {
+        return {
+            type: 'Tuple',
+            data: parts
+        };
+    }
+    C.Tuple = Tuple;
+    function CreateConstraintOn(name, parts) {
+        return {
+            type: 'CreateConstraintOn',
+            data: parts,
+            name,
+            ifNotExists() {
+                this.idempotent = true;
+                return this;
+            }
+        };
+    }
+    C.CreateConstraintOn = CreateConstraintOn;
     function compileNode(ast) {
         let message = '(';
         const { ref, type, props } = ast.data;
@@ -129,8 +148,25 @@ var C;
         return message;
     }
     C.compileRelProps = compileRelProps;
+    function compileCreateConstraintOn(ast) {
+        let message = 'CREATE CONSTRAINT ';
+        if (ast.idempotent) {
+            message += 'IF NOT EXISTS ';
+        }
+        message += ast.name + ' ON ';
+        message += compile(ast.data);
+        return message;
+    }
+    C.compileCreateConstraintOn = compileCreateConstraintOn;
+    function throwCompilationError(ast) {
+        throw new Error('TODO' + JSON.stringify(ast, null, 2));
+    }
+    C.throwCompilationError = throwCompilationError;
     function compile(ast) {
-        if (Array.isArray(ast)) {
+        if (typeof ast === 'string') {
+            return ast;
+        }
+        else if (Array.isArray(ast)) {
             return ast.map(compile).join('\n');
         }
         else if (ast.type === 'Node') {
@@ -157,18 +193,18 @@ var C;
         else if (ast.type === 'RelProps') {
             return compileRelProps(ast);
         }
+        else if (ast.type === 'CreateConstraintOn') {
+            return compileCreateConstraintOn(ast);
+        }
         else {
-            throw new Error('TODO' + JSON.stringify(ast, null, 2));
+            throwCompilationError(ast);
         }
     }
     C.compile = compile;
 })(C || (C = {}));
 const query = C.compile([
-    C.Path([
-        C.Node('xx', 'DRIVE_TO', { a: 0, b: 1 }),
-        C.LeftRel('rel', 'DRIVES_TO', { c: 2 }),
-        C.Node('zz', 'DRIVE_TO', {}),
-    ])
+    C.CreateConstraintOn('bing', C.Node('book', 'Book'))
+        .ifNotExists()
 ]);
 console.log(query);
 //# sourceMappingURL=iahklu.js.map

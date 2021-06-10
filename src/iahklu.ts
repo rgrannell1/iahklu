@@ -7,16 +7,7 @@ namespace C {
   type RelProps = any // -- TODO
 
   export interface AST {
-    type:
-      'Node' |
-      'Rel' |
-      'LeftRel' |
-      'RightRel' |
-      'NodeProps' |
-      'RelProps' |
-      'Path' |
-      'NodeProps' |
-      'Tuple'
+    type: string
   }
 
   export interface NodeAST extends AST {
@@ -72,9 +63,16 @@ namespace C {
 
   export interface TupleAST extends AST {
     type: 'Tuple'
-    data: AST[]
+    data: Array<AST | string>
   }
 
+  export interface CreateConstraintOnAST extends AST {
+    type: 'CreateConstraintOn'
+    data: NodeAST | PathAST
+    name: string
+    idempotent?: boolean
+    ifNotExists (): CreateConstraintOnAST
+  }
 
 
   export function asNodePropsAST (props: NodeProps | undefined): NodePropsAST | undefined {
@@ -130,8 +128,24 @@ namespace C {
     }
   }
 
+  export function Tuple (parts: Array<AST | string>): TupleAST {
+    return {
+      type: 'Tuple',
+      data: parts
+    }
+  }
 
-
+  export function CreateConstraintOn (name: string, parts: NodeAST | PathAST): CreateConstraintOnAST {
+    return {
+      type: 'CreateConstraintOn',
+      data: parts,
+      name,
+      ifNotExists () {
+        this.idempotent = true
+        return this
+      }
+    }
+  }
 
   export function compileNode (ast: NodeAST): string {
     let message = '('
@@ -227,8 +241,28 @@ namespace C {
     return message
   }
 
-  export function compile (ast: AST | AST[]): string {
-    if (Array.isArray(ast)) {
+  export function compileCreateConstraintOn (ast: CreateConstraintOnAST): string {
+    let message = 'CREATE CONSTRAINT '
+
+    if (ast.idempotent) {
+      message += 'IF NOT EXISTS '
+    }
+
+    message += ast.name + ' ON '
+
+    message += compile(ast.data)
+
+    return message
+  }
+
+  export function throwCompilationError (ast: any): never {
+    throw new Error('TODO' + JSON.stringify(ast, null, 2))
+  }
+
+  export function compile (ast: AST | AST[] | string): string {
+    if (typeof ast === 'string') {
+      return ast
+    } else if (Array.isArray(ast)) {
       return ast.map(compile).join('\n')
     } else if (ast.type === 'Node') {
       return compileNode(ast as NodeAST)
@@ -246,18 +280,19 @@ namespace C {
       return compileTuple(ast as TupleAST)
     } else if (ast.type === 'RelProps') {
       return compileRelProps(ast as RelPropsAST)
+    } else if (ast.type === 'CreateConstraintOn') {
+      return compileCreateConstraintOn(ast as CreateConstraintOnAST)
     } else {
-      throw new Error('TODO' + JSON.stringify(ast, null, 2))
+      throwCompilationError(ast)
     }
   }
 }
 
 const query = C.compile([
-  C.Path([
-    C.Node('xx', 'DRIVE_TO', { a: 0, b: 1 }),
-    C.LeftRel('rel', 'DRIVES_TO', { c: 2 }),
-    C.Node('zz', 'DRIVE_TO', {  }),
-  ])
+
+  C.CreateConstraintOn('bing', C.Node('book', 'Book'))
+    .ifNotExists()
+
 ])
 
 console.log(query)

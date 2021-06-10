@@ -4,11 +4,13 @@
   "main": "index.js",
   "license": "MIT",
   "dependencies": {
+    "typedoc": "^0.20.36",
     "typescript": "^4.3.2"
   },
   "scripts": {
     "tsc": "tsc",
     "start": "yarn run tsc && node dist/iahklu.js",
-    "start:watch": "find src | entr -s 'yarn start'"
+    "start:watch": "find src | entr -s 'yarn start'",
+    "doc": "typedoc --out docs src/iahklu.ts"
   }
 }
